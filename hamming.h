@@ -73,17 +73,37 @@
 
 typedef struct {
     char *buf;
-    uint32_t size;
-} buffer;
+    uint32_t used;
+    uint32_t allocated;
+} buffer_hamming;
 
-// the header will be encoded as hamming code 16_11
-// in order to fit nicely in 2 bytes, so that means
-// the header parameter cannot be more than 11 bits
-// to properly encode it
-uint16_t encode_header(uint16_t header) {}
+inline char get_bit(char byte, uint8_t bit) {
+    return (byte & (1 << bit)) >> bit;
+}
 
-void encode_hamming_16_11(const buffer buf_in, buffer buf_out) {
-    assert((float)buf_in.size * (16.0 / 11.0) < buf_out.size);
+void encode_hamming(const buffer_hamming buf_in, buffer_hamming buf_out) {
+    // buf_out already needs to have enough allocated memory
+    assert(buf_in.used <= buf_out.allocated / 2);
+
+    for (uint32_t i = 0; i < buf_in.used; i++) {
+        char byte = buf_in.buf[i];
+
+        char bits[8];
+        for (int i = 7; i > 0; i--) {
+            bits[7-i] = get_bit(byte, i);
+        }
+
+        char positions[4] = {0b011, 0b101, 0b110, 0b111};
+
+        char parity = 0;
+        for (int j = 0; j < 4; j++) {
+            if (bits[j]) {
+                parity ^= positions[j];
+            }
+        }
+
+
+    }
 }
 
 #endif
