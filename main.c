@@ -102,15 +102,15 @@ int main() {
         byte_error_data[byte_error_idx++] = data[i];
     }
 
-    FILE* original_data_f = fopen("original.bin", "wb");
+    FILE *original_data_f = fopen("original.bin", "wb");
     fwrite(data, sizeof(char), DATA_SIZE, original_data_f);
     fclose(original_data_f);
 
-    FILE* bit_error_data_f = fopen("bit_error.bin", "wb");
+    FILE *bit_error_data_f = fopen("bit_error.bin", "wb");
     fwrite(bit_error_data, sizeof(char), DATA_SIZE, bit_error_data_f);
     fclose(bit_error_data_f);
 
-    FILE* byte_error_data_f = fopen("byte_drop.bin", "wb");
+    FILE *byte_error_data_f = fopen("byte_drop.bin", "wb");
     assert(byte_error_size == byte_error_idx);
     fwrite(byte_error_data, sizeof(char), byte_error_size, byte_error_data_f);
     fclose(byte_error_data_f);
