@@ -72,70 +72,70 @@
 #include <stdint.h>
 
 typedef struct {
-  uint8_t *buf;
-  uint32_t used;
-  uint32_t allocated;
+    uint8_t *buf;
+    uint32_t used;
+    uint32_t allocated;
 } buffer_hamming;
 
 #define GET_BIT(byte, bit) (((byte) & (1 << (bit))) >> (bit))
 
 uint8_t get_1_count(uint8_t byte) {
-  uint8_t count = 0;
+    uint8_t count = 0;
 
-  while (byte) {
-    count += byte & 1;
-    byte >>= 1;
-  }
+    while (byte) {
+        count += byte & 1;
+        byte >>= 1;
+    }
 
-  return count;
+    return count;
 }
 
 void encode_4_bits(buffer_hamming *buf_out, uint8_t data) {
-  assert(data <= 0b1111);
+    assert(data <= 0b1111);
 
-  char bits[4];
-  for (int i = 3; i >= 0; i--) {
-    bits[3 - i] = GET_BIT(data, i);
-  }
-
-  const char positions[4] = {0b111, 0b110, 0b101, 0b011};
-
-  char parity = 0;
-  for (int j = 0; j < 4; j++) {
-    if (bits[j]) {
-      parity ^= positions[j];
+    char bits[4];
+    for (int i = 3; i >= 0; i--) {
+        bits[3 - i] = GET_BIT(data, i);
     }
-  }
 
-  char parity_bits[4] = {0};
-  for (int j = 1; j < 4; j++) {
-    parity_bits[j] = GET_BIT(parity, j - 1);
-  }
+    const char positions[4] = {0b111, 0b110, 0b101, 0b011};
 
-  // encoding: a b c p3 d p2 p1 p0
-  // p0 is global parity bit
-  char encoded_byte = (bits[0] << 7) | (bits[1] << 6) | (bits[2] << 5) |
-                      (parity_bits[3] << 4) | (bits[3] << 3) |
-                      (parity_bits[2] << 2) | (parity_bits[1] << 1);
-  encoded_byte |= get_1_count(encoded_byte) % 2;
+    char parity = 0;
+    for (int j = 0; j < 4; j++) {
+        if (bits[j]) {
+            parity ^= positions[j];
+        }
+    }
 
-  buf_out->buf[buf_out->used++] = encoded_byte;
+    char parity_bits[4] = {0};
+    for (int j = 1; j < 4; j++) {
+        parity_bits[j] = GET_BIT(parity, j - 1);
+    }
+
+    // encoding: a b c p3 d p2 p1 p0
+    // p0 is global parity bit
+    char encoded_byte = (bits[0] << 7) | (bits[1] << 6) | (bits[2] << 5) |
+                        (parity_bits[3] << 4) | (bits[3] << 3) |
+                        (parity_bits[2] << 2) | (parity_bits[1] << 1);
+    encoded_byte |= get_1_count(encoded_byte) % 2;
+
+    buf_out->buf[buf_out->used++] = encoded_byte;
 }
 
 void encode_hamming(const buffer_hamming *buf_in, buffer_hamming *buf_out) {
-  // buf_out already needs to have enough allocated memory
-  assert(buf_in->used <= buf_out->allocated / 2);
+    // buf_out already needs to have enough allocated memory
+    assert(buf_in->used <= buf_out->allocated / 2);
 
-  buf_out->used = 0;
-  for (uint32_t i = 0; i < buf_in->used; i++) {
-    char byte = buf_in->buf[i];
+    buf_out->used = 0;
+    for (uint32_t i = 0; i < buf_in->used; i++) {
+        char byte = buf_in->buf[i];
 
-    char first = (byte & 0xF0) >> 4;
-    char second = (byte & 0x0F);
+        char first = (byte & 0xF0) >> 4;
+        char second = (byte & 0x0F);
 
-    encode_4_bits(buf_out, first);
-    encode_4_bits(buf_out, second);
-  }
+        encode_4_bits(buf_out, first);
+        encode_4_bits(buf_out, second);
+    }
 }
 
 #endif

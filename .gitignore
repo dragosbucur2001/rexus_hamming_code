@@ -3,4 +3,5 @@
 !main.c
 !hamming.h
 !unittest_hamming.c
+!.clang-format
 
