@@ -70,6 +70,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
 
 typedef struct {
     uint8_t *buf;
@@ -90,6 +91,43 @@ uint8_t get_1_count(uint8_t byte) {
     return count;
 }
 
+/*
+ * TODO: Pretty ugly interface, it should have taken just the data and
+ * simply return `encoded_bytes`, but i do not want to refactor the tests rn.
+ * Also the implementation is pretty messy (but still correct).
+ *
+ * So these is the fundamental building block for the Hamming(8,4) code.
+ * It takes 4 bits of data and transforms it into an encoded byte.
+ *
+ * The bit positions of `data` are as follow (bit position on top, bit label on
+ * bottom):
+ *
+ * 011 010 001 000
+ *  a   b   c   d
+ *
+ * So, if `data` is 0b1001, then:
+ * a = 1
+ * b = 0
+ * c = 0
+ * d = 1
+ *
+ * The bits of `encoded_byte` will be arranged as follow:
+ *
+ * 111 110 101 100 011 010 001 000
+ *  a   b   c   p3  d   p2  p1  p0
+ *
+ *  p3, p2, p1, and p0 are parity bits
+ *
+ *  p0 - is the additional detection bit specified by (8,4), which we do not
+ * really use
+ *
+ * p1, p2, p3 are pretty standard:
+ * https://en.wikipedia.org/wiki/Hamming_code#General_algorithm
+ *
+ * Other useful links (3Blue1Brown):
+ * https://youtu.be/X8jsijhllIA?si=CwlFf3mln5EN35RM (Theory: 20 mins)
+ * https://youtu.be/b3NxrZOu_CE?si=bHiTZJVZoncFXPZq (Implementation: 16 mins)
+ */
 void encode_4_bits(buffer_hamming *buf_out, uint8_t data) {
     assert(data <= 0b1111);
 
@@ -123,6 +161,7 @@ void encode_4_bits(buffer_hamming *buf_out, uint8_t data) {
     buf_out->used++;
 }
 
+// split each data byte in 2 encoded bytes, most significant half first
 void encode_hamming(const buffer_hamming *buf_in, buffer_hamming *buf_out) {
     // buf_out already needs to have enough allocated memory
     assert(buf_in->used <= buf_out->allocated / 2);
@@ -139,11 +178,23 @@ void encode_hamming(const buffer_hamming *buf_in, buffer_hamming *buf_out) {
     }
 }
 
+/*
+ * So the encoded byte is:
+ *
+ * 111 110 101 100 011 010 001 000
+ *  a   b   c   p3  d   p2  p1  p0
+ *
+ * There are 2 steps:
+ *      1. Correct the byte - xoring the positions of all 1 bits will give you
+ * the position of the error bit, which will need to be flipped in order to
+ * correct the byte. If xoring gives you 0, everything is fine.
+ *      2. Get the data - simply select bits a, b, c, d and return them
+ */
 uint8_t decode_4_bits(uint8_t data) {
     uint8_t parity = 0;
 
-    // we do not take parity bit 0 into consideration
-    // while error checking
+    // we do not take parity bit 0 (p0) into consideration
+    // while error checking, that's why
     for (int i = 7; i >= 1; i--) {
         if (GET_BIT(data, i)) {
             parity ^= i;
@@ -161,6 +212,7 @@ uint8_t decode_4_bits(uint8_t data) {
     return result;
 }
 
+// Every 2 encoded bytes will contain 1 byte of data.
 void decode_hamming(const buffer_hamming *buf_in, buffer_hamming *buf_out) {
     // buf_out already needs to have enough allocated memory
     assert((buf_in->used + 1) / 2 <= buf_out->allocated);
