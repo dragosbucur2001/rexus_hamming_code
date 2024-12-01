@@ -2,3 +2,5 @@
 !.gitignore
 !main.c
 !hamming.h
+!unittest_hamming.c
+
