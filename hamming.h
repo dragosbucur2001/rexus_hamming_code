@@ -93,21 +93,21 @@ uint8_t get_1_count(uint8_t byte) {
 void encode_4_bits(buffer_hamming *buf_out, uint8_t data) {
     assert(data <= 0b1111);
 
-    char bits[4];
+    uint8_t bits[4];
     for (int i = 3; i >= 0; i--) {
         bits[3 - i] = GET_BIT(data, i);
     }
 
-    const char positions[4] = {0b111, 0b110, 0b101, 0b011};
+    const uint8_t positions[4] = {0b111, 0b110, 0b101, 0b011};
 
-    char parity = 0;
+    uint8_t parity = 0;
     for (int j = 0; j < 4; j++) {
         if (bits[j]) {
             parity ^= positions[j];
         }
     }
 
-    char parity_bits[4] = {0};
+    uint8_t parity_bits[4] = {0};
     for (int j = 1; j < 4; j++) {
         parity_bits[j] = GET_BIT(parity, j - 1);
     }
@@ -119,7 +119,8 @@ void encode_4_bits(buffer_hamming *buf_out, uint8_t data) {
                         (parity_bits[2] << 2) | (parity_bits[1] << 1);
     encoded_byte |= get_1_count(encoded_byte) % 2;
 
-    buf_out->buf[buf_out->used++] = encoded_byte;
+    buf_out->buf[buf_out->used] = encoded_byte;
+    buf_out->used++;
 }
 
 void encode_hamming(const buffer_hamming *buf_in, buffer_hamming *buf_out) {
@@ -128,13 +129,53 @@ void encode_hamming(const buffer_hamming *buf_in, buffer_hamming *buf_out) {
 
     buf_out->used = 0;
     for (uint32_t i = 0; i < buf_in->used; i++) {
-        char byte = buf_in->buf[i];
+        uint8_t byte = buf_in->buf[i];
 
-        char first = (byte & 0xF0) >> 4;
-        char second = (byte & 0x0F);
+        uint8_t first = (byte & 0xF0) >> 4;
+        uint8_t second = (byte & 0x0F);
 
         encode_4_bits(buf_out, first);
         encode_4_bits(buf_out, second);
+    }
+}
+
+uint8_t decode_4_bits(uint8_t data) {
+    uint8_t parity = 0;
+
+    // we do not take parity bit 0 into consideration
+    // while error checking
+    for (int i = 7; i >= 1; i--) {
+        if (GET_BIT(data, i)) {
+            parity ^= i;
+        }
+    }
+
+    // there was an error, xoring the positions of all bits which are 1
+    // gives us the position of the error bit
+    if (parity != 0) {
+        data ^= 1 << parity;
+    }
+
+    uint8_t result = (GET_BIT(data, 7) << 3) | (GET_BIT(data, 6) << 2) |
+                     (GET_BIT(data, 5) << 1) | GET_BIT(data, 3);
+    return result;
+}
+
+void decode_hamming(const buffer_hamming *buf_in, buffer_hamming *buf_out) {
+    // buf_out already needs to have enough allocated memory
+    assert((buf_in->used + 1) / 2 <= buf_out->allocated);
+
+    buf_out->used = 0;
+    for (uint32_t i = 0; i < buf_in->used; i++) {
+        uint8_t byte = buf_in->buf[i];
+        uint8_t half = decode_4_bits(byte);
+
+        if (i % 2 == 0) {
+            buf_out->buf[buf_out->used] = half << 4;
+        } else {
+            buf_out->buf[buf_out->used] |= half;
+            buf_out->used++;
+        }
     }
 }
 
