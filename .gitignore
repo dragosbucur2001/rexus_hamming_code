@@ -4,4 +4,5 @@
 !hamming.h
 !unittest_hamming.c
 !.clang-format
-
+!decoder.py
+!scripts.sh
